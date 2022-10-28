@@ -1,4 +1,5 @@
-#[derive(Queryable)]
+// Debug, como su nombre lo indica, sirve para debuguear (imprimir con {:?})
+#[derive(Queryable, Debug)]
 pub struct Post {
     pub id: i32,
     pub title: String,
@@ -16,4 +17,10 @@ pub struct NewPost<'a> {
     pub title: &'a str,
     pub body: &'a str,
     pub slug: &'a str,
+}
+
+#[derive(Queryable, Debug)]
+pub struct PostSimplificado{ // Se creo este modelo para hacer una query que obtenga unicamente esos campos
+    pub title: String,
+    pub slug: String,
 }
