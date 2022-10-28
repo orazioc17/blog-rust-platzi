@@ -102,9 +102,23 @@ fn main() {
         .order(id)
         .load::<Post>(&mut conn)
         .expect("Error excecuting query");
+
+    for post in posts_result {
+        println!("{:?}", post);
+    }
+
+    // Borrando un registro
+    diesel::delete(posts.filter(slug.like("%-post%")))
+        .execute(&mut conn)
+        .expect("Ha fallado la eliminacion del tercer post");
+
+    println!("\nQuery sin limites");
+    let posts_result = posts // Sin limit es como hacer un SELECT * FROM table
+        .order(id)
+        .load::<Post>(&mut conn)
+        .expect("Error excecuting query");
     
     for post in posts_result {
         println!("{:?}", post);
-    } 
-    
+    }
 }
