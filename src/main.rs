@@ -27,16 +27,63 @@ async fn index(template_manager: web::Data<tera::Tera>) -> impl Responder {
 
     HttpResponse::Ok()
         .content_type("text/html")
-        .body(template_manager.render("index.html", &ctx).unwrap())
+        .body(template_manager.render("bienvenida.html", &ctx).unwrap())
 }
 
 #[get("/posts")]
-async fn get_posts(pool: web::Data<DbPool>) -> impl Responder {
+async fn get_posts(
+    pool: web::Data<DbPool>,
+    template_manager: web::Data<tera::Tera>,
+) -> impl Responder {
     let mut conn = pool.get().expect("Problema al traer la base de datos");
 
     // block lo que hace es que en el thread que estamos se bloquea para que nadie mas pueda acceder
     match web::block(move || posts.load::<Post>(&mut conn)).await {
-        Ok(data) => HttpResponse::Ok().body(format!("{:?}", data)),
+        Ok(data) => {
+            // tera context
+            let mut ctx = tera::Context::new();
+
+            let data = data.unwrap();
+            ctx.insert("posts", &data);
+            
+            HttpResponse::Ok()
+                .content_type("text/html")
+                .body(template_manager.render("index.html", &ctx).unwrap())
+        
+            // HttpResponse::Ok().body(format!("{:?}", data))
+        },
+        Err(err) => HttpResponse::Ok().body("Hubo un error al recibir data"),
+    }
+}
+
+#[get("/posts/{blog_slug}")]
+async fn get_post(
+    pool: web::Data<DbPool>,
+    template_manager: web::Data<tera::Tera>,
+    blog_slug: web::Path<String>
+) -> impl Responder {
+    let mut conn = pool.get().expect("Problema al traer la base de datos");
+
+    let url_slug = blog_slug.into_inner();
+    // block lo que hace es que en el thread que estamos se bloquea para que nadie mas pueda acceder
+    match web::block(move || posts.filter(slug.eq(url_slug)).load::<Post>(&mut conn)).await {
+        Ok(data) => {
+            // tera context
+            let mut ctx = tera::Context::new();
+
+            let data = data.unwrap();
+            if data.len() == 0 {
+                return HttpResponse::NotFound().finish();
+            }
+            let data = &data[0];
+            ctx.insert("post", data);
+            
+            HttpResponse::Ok()
+                .content_type("text/html")
+                .body(template_manager.render("blogpost.html", &ctx).unwrap())
+        
+            // HttpResponse::Ok().body(format!("{:?}", data))
+        },
         Err(err) => HttpResponse::Ok().body("Hubo un error al recibir data"),
     }
 }
@@ -72,6 +119,7 @@ async fn main() -> std::io::Result<()> {
             .service(index)
             .service(get_posts)
             .service(create_posts)
+            .service(get_post)
             .app_data(web::Data::new(pool.clone())) // Esta es la forma de utilizarlo con app_data, pues data esta deprecado y era data(pool.clone())
             .app_data(web::Data::new(tera))
     })
