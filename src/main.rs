@@ -4,9 +4,9 @@ extern crate diesel;
 pub mod models;
 pub mod schema;
 
-use actix_web::web::Data;
 use dotenvy::dotenv;
 use std::env;
+use tera::Tera;
 
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
@@ -17,13 +17,17 @@ use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 
 pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
-use self::models::{NewPost, Post, NewPostHandler};
+use self::models::{NewPost, NewPostHandler, Post};
 use self::schema::posts;
 use self::schema::posts::dsl::*;
 
 #[get("/")]
-async fn index() -> impl Responder {
-    HttpResponse::Ok().body("Hola vale")
+async fn index(template_manager: web::Data<tera::Tera>) -> impl Responder {
+    let mut ctx = tera::Context::new();
+
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(template_manager.render("index.html", &ctx).unwrap())
 }
 
 #[get("/posts")]
@@ -42,9 +46,7 @@ async fn create_posts(pool: web::Data<DbPool>, item: web::Json<NewPostHandler>) 
     let conn = pool.get().expect("Problema al traer la base de datos");
 
     // block lo que hace es que en el thread que estamos se bloquea para que nadie mas pueda acceder
-    match web::block(move || { Post::create_post(conn, &item) })
-    .await
-    {
+    match web::block(move || Post::create_post(conn, &item)).await {
         Ok(data) => HttpResponse::Ok().body(format!("{:?}", data)),
         Err(err) => HttpResponse::Ok().body("Hubo un error al recibir data"),
     }
@@ -64,11 +66,14 @@ async fn main() -> std::io::Result<()> {
         .expect("No se pudo construir la Pool");
 
     HttpServer::new(move || {
+        let tera = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
+
         App::new()
             .service(index)
             .service(get_posts)
             .service(create_posts)
             .app_data(web::Data::new(pool.clone())) // Esta es la forma de utilizarlo con app_data, pues data esta deprecado y era data(pool.clone())
+            .app_data(web::Data::new(tera))
     })
     .bind(("127.0.0.1", 8080))?
     .run()
