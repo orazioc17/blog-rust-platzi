@@ -102,6 +102,8 @@ async fn create_posts(pool: web::Data<DbPool>, item: web::Json<NewPostHandler>) 
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
     let db_url = env::var("DATABASE_URL").expect("db url variable no encontrada");
+    let port = env::var("PORT").expect("db url variable no encontrada");
+    let port : u16 = port.parse().unwrap();
 
     // Con esto creamos un manager de conexiones, no una sola conexion sino todas las que se vayan a necesitar
     let connection = ConnectionManager::<PgConnection>::new(db_url);
@@ -122,7 +124,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(pool.clone())) // Esta es la forma de utilizarlo con app_data, pues data esta deprecado y era data(pool.clone())
             .app_data(web::Data::new(tera))
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("127.0.0.1", port))?
     .run()
     .await
 }
