@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate diesel;
 
 pub mod models;
@@ -17,13 +16,13 @@ use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 
 pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
-use self::models::{NewPost, NewPostHandler, Post};
-use self::schema::posts;
+use self::models::{NewPostHandler, Post};
+// use self::schema::posts;
 use self::schema::posts::dsl::*;
 
 #[get("/")]
 async fn index(template_manager: web::Data<tera::Tera>) -> impl Responder {
-    let mut ctx = tera::Context::new();
+    let ctx = tera::Context::new();
 
     HttpResponse::Ok()
         .content_type("text/html")
@@ -52,7 +51,7 @@ async fn get_posts(
         
             // HttpResponse::Ok().body(format!("{:?}", data))
         },
-        Err(err) => HttpResponse::Ok().body("Hubo un error al recibir data"),
+        Err(_err) => HttpResponse::Ok().body("Hubo un error al recibir data"),
     }
 }
 
@@ -84,7 +83,7 @@ async fn get_post(
         
             // HttpResponse::Ok().body(format!("{:?}", data))
         },
-        Err(err) => HttpResponse::Ok().body("Hubo un error al recibir data"),
+        Err(_err) => HttpResponse::Ok().body("Hubo un error al recibir data"),
     }
 }
 
@@ -95,7 +94,7 @@ async fn create_posts(pool: web::Data<DbPool>, item: web::Json<NewPostHandler>) 
     // block lo que hace es que en el thread que estamos se bloquea para que nadie mas pueda acceder
     match web::block(move || Post::create_post(conn, &item)).await {
         Ok(data) => HttpResponse::Ok().body(format!("{:?}", data)),
-        Err(err) => HttpResponse::Ok().body("Hubo un error al recibir data"),
+        Err(_err) => HttpResponse::Ok().body("Hubo un error al recibir data"),
     }
 }
 
